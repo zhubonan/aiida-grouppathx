@@ -66,7 +66,7 @@ aiida_grouppathx
 └── __pycache__
     ├── __init__.cpython-38.pyc
     └── pathx.cpython-38.pyc
-``` 
+```
 
 In analogy:
 
@@ -117,7 +117,7 @@ group1.browse.group2.int2().get_node(  # Also gives node de89d2
 ```
 
 
-Please see the `pathx.py` for the extended methods, and the official documentation for the concept of `GroupPath`.  
+Please see the `pathx.py` for the extended methods, and the official documentation for the concept of `GroupPath`.
 
 ## Installation
 

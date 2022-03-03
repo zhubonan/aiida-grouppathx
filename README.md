@@ -87,7 +87,6 @@ Please see the `pathx.py` for the extended methods, and the official documentati
 ```shell
 pip install aiida-grouppathx
 verdi quicksetup  # better to set up a new profile
-verdi plugin list aiida.calculations  # should now show your calclulation plugins
 ```
 
 ## Development

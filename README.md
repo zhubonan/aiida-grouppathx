@@ -76,7 +76,7 @@ The stored nodes can be access through:
 
 ```
 group1['group2/int2'].get_node()  # Gives node de89d2
-group1.browse.group2.int2().get_node(  # Also gives node de89d2
+group1.browse.group2.int2().get_node()  # Also gives node de89d2
 ```
 
 

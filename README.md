@@ -14,10 +14,10 @@ intended to help developers get started with their AiiDA plugins.
 ## Features and usage
 
  This package is provides a enhanced version of `GroupPath` - `GroupPathX`.
- The main feature is that it allows nodes stored undert a group to be *named* by an alias.
+ The main feature is that it allows nodes stored under a group to be *named* by an alias.
  This way, one can address a specific `Node` as `GroupPath('mygroup/structure1')`.
  In addition, a `show_tree` method is provided for visualising the content of a specific `GroupPathX`,
- similiar too the command line tool `tree` that works on the file system.
+ similiar to the command line tool `tree` that works on the file system.
  The goal is to provide a way for managing data with an interface what is similar to a file system based approach.
 
  ```
@@ -81,6 +81,9 @@ group1.browse.group2.int2().get_node()  # Also gives node de89d2
 
 
 Please see the `pathx.py` for the extended methods, and the official documentation for the concept of `GroupPath`.
+
+The package does not change how `Group` and `Node` operates in the AiiDA.
+It is only built on top of the existing system as an alternative way to access the underlying data.
 
 ## Installation
 

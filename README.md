@@ -60,7 +60,7 @@ This kind of mark up can be customised, for example, to show the status of workf
 def decorate_name(path):
     if path.is_node:
         return ' ' + str(path.get_node())
-path.show_tree()
+path.show_tree(decorate=decorate_name)
 ```
 
 gives:

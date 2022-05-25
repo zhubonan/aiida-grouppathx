@@ -49,10 +49,6 @@ jobs:
         pip install --upgrade pip
         pip install -e .[testing]
 
-    - name: Run reentry scan
-      run: reentry scan
-      if: ${{ matrix.aiida-version != 'develop' }}
-
     - name: Run test suite
       env:
         # show timings of tests

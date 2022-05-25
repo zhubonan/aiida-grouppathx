@@ -14,16 +14,11 @@ import os
 import sys
 import time
 
-from reentry import manager
-
 from aiida.manage.configuration import load_documentation_profile
 
 import aiida_grouppathx
 
 # -- AiiDA-related setup --------------------------------------------------
-
-# ensure all entry point plugins are lodaed
-manager.scan()
 
 # Load the dummy profile even if we are running locally, this way the documentation will succeed even if the current
 # default profile of the AiiDA installation does not use a Django backend.

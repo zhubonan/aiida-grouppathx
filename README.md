@@ -12,6 +12,9 @@ intended to help developers get started with their AiiDA plugins.
 
 ## Features and usage
 
+Interactive example at: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zhubonan/aiida-nbexamples/HEAD)
+
+
  This package is provides a enhanced version of `GroupPath` - `GroupPathX`.
  The main feature is that it allows nodes stored under a group to be *named* by an alias.
  This way, one can address a specific `Node` as `GroupPath('mygroup/structure1')`.

@@ -11,6 +11,7 @@ from treelib import Tree
 
 from aiida.common.exceptions import NotExistent
 import aiida.orm as orm
+from aiida.orm import ProcessNode
 from aiida.tools.groups.paths import (
     REGEX_ATTR,
     GroupAttr,
@@ -18,8 +19,6 @@ from aiida.tools.groups.paths import (
     InvalidPath,
     NoGroupsInPathError,
 )
-
-# pylint:disable=protected-access
 
 GROUP_ALIAS_KEY = "_group_alias"
 
@@ -170,14 +169,14 @@ class GroupPathX(GroupPath):
 
     @property
     def path_type(self):
-        """Type of this path"""
+        """Return a `GroupPathXType enum"""
         if self.is_virtual:
             return GroupPathXType.VIRTUAL
         if self.is_group:
             return GroupPathXType.GROUP
         if self.is_node:
             return GroupPathXType.NODE
-        raise RuntimeError("Cannot determine the type this path")
+        raise ValueError("Cannot determine the type of the path")
 
     @property
     def is_group(self) -> bool:
@@ -232,22 +231,36 @@ class GroupPathX(GroupPath):
         if query.count() == 0 and self.is_virtual:
             raise NoGroupsInPathError(self)
 
+        def node_wrapper(items):
+            for item in items:
+                yield ("node", item)
+
+        def group_wrapper(items):
+            for item in items:
+                yield ("group", item)
+
         yielded = []
-        for (label,) in chain(query.iterall(), node_query.iterall()):
+        for (item_type, label) in chain(
+            group_wrapper(query.iterall()), node_wrapper(node_query.iterall())
+        ):
+            label = label[0]
             # Group specific label
             if isinstance(label, dict):
                 label = label.get(self.get_group().uuid)
                 if label is None:
                     continue
 
-            if not self.path in label:
+            if item_type == "node":
                 # This means that the path is associated with a node
                 # Hence we composethe full path
                 label = self.path + self.delimiter + label
 
+            # Sanity check....
             path = label.split(self._delimiter)
             if len(path) <= len(self._path_list):
                 continue
+
+            # Get the fully qualified path to the next level
             path_string = self._delimiter.join(path[: len(self._path_list) + 1])
             if (
                 path_string not in yielded
@@ -277,11 +290,16 @@ class GroupPathX(GroupPath):
 
     def _build_tree(self, tree=None, parent=None, decorate=None):
         """Build a tree diagram of all children"""
+
         name = self.key
         if decorate is not None:
-            val = decorate(self)
-            if val is not None:
-                name += decorate(self)
+            suffix = []
+            for dfunc in decorate:
+                val = dfunc(self)
+                if val is not None:
+                    suffix.append(val)
+            if suffix:
+                name = name + " " + "|".join(suffix)
 
         if tree is None:
             tree = Tree()
@@ -289,17 +307,21 @@ class GroupPathX(GroupPath):
         else:
             tree.create_node(name, self.path, parent=parent)
         for child in self:
-            child._build_tree(tree, parent=self.path, decorate=decorate)
+            child._build_tree(  # pylint: disable=protected-access
+                tree,
+                parent=self.path,
+                decorate=decorate,
+            )
         return tree
 
-    def show_tree(self, decorate=None):
+    def show_tree(self, *decorate):
         """
         Show the tree of all children
 
         Path that are nodes are decorated with ``*``.
         """
-        if decorate is None:
-            decorate = decorate_node
+        if not decorate:
+            decorate = [decorate_node]
 
         tree = self._build_tree(decorate=decorate)
         tree.show()
@@ -375,6 +397,8 @@ class GroupPathX(GroupPath):
                 f"Alias {alias} is not valid Python identifier - you may consider using one for easier access."
             )
 
+        if not self.is_node:
+            raise PathIsGroupError(self)
         node = self.get_node()
         if not self.parent[alias].is_virtual:
             raise ValueError(f"Alias {alias} has been used already.")
@@ -472,12 +496,38 @@ def decorate_group(path) -> Optional[str]:
 
 def decorate_with_exit_status(path) -> Optional[str]:
     """Decrate paths that are nodes with process states"""
-    from aiida.orm import ProcessNode  # pylint: disable=import-outside-toplevel
 
     if path.is_node:
         node = path.get_node()
         if isinstance(node, ProcessNode):
             if node.is_finished:
-                return f" [{node.exit_status}]"
-            return f" [{node.process_state.value}]"
+                return f"[{node.exit_status}]"
+            return f"[{node.process_state.value}]"
+    return None
+
+
+def decorate_with_uuid_first_n(n_char=12):
+    """
+    Generator for UUID decoration
+
+    Usage:
+
+        >>> path.show_tree(decorate_with_uuid(12))  # To show the first 12 characters of the UUID
+    """
+
+    def func(path) -> Optional[str]:
+        """Decrate paths that are nodes with process states"""
+        if path.is_node:
+            node = path.get_node()
+            return f"{node.uuid[:n_char]}"
+        return None
+
+    return func
+
+
+def decorate_with_uuid(path) -> Optional[str]:
+    """Decrate paths that are nodes with process states"""
+    if path.is_node:
+        node = path.get_node()
+        return f"{node.uuid[:12]}"
     return None

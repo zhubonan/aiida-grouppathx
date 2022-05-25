@@ -310,18 +310,27 @@ def test_build_tree(clear_database_before_test):
 
     group.add_node(node1, "node1")
     subgroup.add_node(node2, "node2")
-    tree = group._build_tree(decorate=decorate_node)
+    tree = group._build_tree(decorate=[decorate_node])
     treestring = tree.show(stdout=False)
-    assert "node1*" in treestring
+    assert "node1 *" in treestring
     assert "mysubgroup" in treestring
 
     def mydecorate(path):
         if path.is_node:
-            return " | label: " + path.get_node().label
+            return "| label: " + path.get_node().label
         return None
 
-    tree = group._build_tree(decorate=mydecorate)
+    tree = group._build_tree(decorate=[mydecorate])
     treestring = tree.show(stdout=False)
     assert "node1 | label: X" in treestring
+
+    def mydecorate2(path):
+        if path.is_node:
+            return "uuid: " + path.get_node().uuid
+        return None
+
+    tree = group._build_tree(decorate=[mydecorate, mydecorate2])
+    treestring = tree.show(stdout=False)
+    assert "node1 | label: X|uuid: " in treestring
 
     group.show_tree()

@@ -22,6 +22,18 @@ from aiida.tools.groups.paths import (
 
 GROUP_ALIAS_KEY = "_group_alias"
 
+__all__ = [
+    "GroupPathX",
+    "decorate_with_label",
+    "decorate_group",
+    "decorate_node",
+    "decorate_with_exit_status",
+    "decorate_with_group_names",
+    "decorate_with_exit_status",
+    "decorate_with_uuid_first_n",
+    "decorate_with_uuid",
+]
+
 
 class GroupPathXType(enum.Enum):
     """Type of the path"""
@@ -299,7 +311,7 @@ class GroupPathX(GroupPath):
                 if val is not None:
                     suffix.append(val)
             if suffix:
-                name = name + " " + "|".join(suffix)
+                name = name + " " + " | ".join(suffix)
 
         if tree is None:
             tree = Tree()
@@ -526,8 +538,27 @@ def decorate_with_uuid_first_n(n_char=12):
 
 
 def decorate_with_uuid(path) -> Optional[str]:
-    """Decrate paths that are nodes with process states"""
+    """Decrate the nodes with their UUIDs"""
     if path.is_node:
         node = path.get_node()
         return f"{node.uuid[:12]}"
+    return None
+
+
+def decorate_with_label(path) -> Optional[str]:
+    """Decrate nodes with their labels"""
+    if path.is_node:
+        node = path.get_node()
+        return f"{node.label}"
+    return None
+
+
+def decorate_with_group_names(path) -> Optional[str]:
+    """Decrate nodes with the name of the group they belong to"""
+    if path.is_node:
+        node = path.get_node()
+        query = orm.QueryBuilder().append(orm.Node, filters={"id": node.id})
+        query.append(orm.Group, with_node=orm.Node, project=["label"])
+        groups = [entry[0] for entry in query.all()]
+        return ", ".join(groups)
     return None

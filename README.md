@@ -49,8 +49,8 @@ gives
 ```
 group1
 ├── group2
-│   └── int2*
-└── int1*
+│   └── int2 *
+└── int1 *
 ```
 
 where the `*` highlights that a leaf is a `Node` rather than a group.
@@ -60,7 +60,7 @@ This kind of mark up can be customised, for example, to show the status of workf
 def decorate_name(path):
     if path.is_node:
         return ' ' + str(path.get_node())
-path.show_tree(decorate=decorate_name)
+path.show_tree(decorate_name)
 ```
 
 gives:
@@ -68,9 +68,27 @@ gives:
 ```
 group1
 ├── group2
-│   └── int2 uuid: de79d244-d3bb-4f61-9d3a-b3f09e1afb72 (pk: 7060) value: 1
-└── int1 uuid: e2f70643-0c25-4ae5-929a-a3e055969d10 (pk: 7059) value: 1
+│   └── int2  uuid: de79d244-d3bb-4f61-9d3a-b3f09e1afb72 (pk: 7060) value: 1
+└── int1  uuid: e2f70643-0c25-4ae5-929a-a3e055969d10 (pk: 7059) value: 1
 ```
+
+Multiple decorators can be combined
+
+```
+from aiida_grouppathx import decorate_with_group_names, decorate_with_label decorate_with_uuid_first_n
+
+path.show_tree(decorate_with_group_names, decorate_with_label, decorate_with_uuid_first_n())
+```
+
+output:
+
+```
+group1
+├── group2
+│   └── int2 group1/group2 |  | de79d244-d3b
+└── int1 group1 |  | e2f70643-0c2
+```
+
 
 The stored nodes can be access through:
 
@@ -79,6 +97,13 @@ group1['group2/int2'].get_node()  # Gives node de89d2
 group1.browse.group2.int2().get_node()  # Also gives node de89d2
 ```
 
+and also
+
+```
+path.browse.<tab>
+path.browse.int1()     # To access the `group1/int1` path
+path.browse.int1().get_node()     # To access the `group1/int1` node
+```
 
 Please see the `pathx.py` for the extended methods, and the official documentation for the concept of `GroupPath`.
 

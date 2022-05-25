@@ -10,8 +10,8 @@ from aiida.tools.groups.paths import (
     NoGroupsInPathError,
 )
 
-from aiida_grouppathx import GroupPathX
-from aiida_grouppathx.pathx import PathIsNotNodeError, decorate_node
+from aiida_grouppathx import GroupPathX, decorate_node
+from aiida_grouppathx.pathx import PathIsNotNodeError
 
 # pylint:disable=protected-access
 
@@ -323,6 +323,6 @@ def test_build_tree(clear_database_before_test):
 
     tree = group._build_tree(decorate=[mydecorate, mydecorate2])
     treestring = tree.show(stdout=False)
-    assert "node1 | label: X|uuid: " in treestring
+    assert "node1 | label: X | uuid: " in treestring
 
     group.show_tree()

@@ -9,8 +9,8 @@ import warnings
 
 from treelib import Tree
 
+from aiida import orm
 from aiida.common.exceptions import NotExistent
-import aiida.orm as orm
 from aiida.orm import ProcessNode
 from aiida.tools.groups.paths import (
     REGEX_ATTR,
@@ -326,17 +326,19 @@ class GroupPathX(GroupPath):
             )
         return tree
 
-    def show_tree(self, *decorate):
+    def show_tree(self, *decorate, **kwargs):
         """
         Show the tree of all children
 
         Path that are nodes are decorated with ``*``.
+        Functions for decorating the leafs can be passed as positional arguments.
+        Keyword arguments will be passed to the ``tree.show`` method.
         """
         if not decorate:
             decorate = [decorate_node]
 
         tree = self._build_tree(decorate=decorate)
-        tree.show()
+        return tree.show(**kwargs)
 
     def __truediv__(self, path: str) -> "GroupPathX":
         """Return a child ``GroupPathX``, with a new path formed by appending ``path`` to the current path."""

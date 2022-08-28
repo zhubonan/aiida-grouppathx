@@ -1,5 +1,6 @@
 # pylint: disable=redefined-outer-name,unused-argument
 """Tests for GroupPathX"""
+from click.testing import CliRunner
 import pytest
 
 from aiida import orm
@@ -11,6 +12,7 @@ from aiida.tools.groups.paths import (
 )
 
 from aiida_grouppathx import GroupPathX, decorate_node
+from aiida_grouppathx.cli import grouppathx_cli
 from aiida_grouppathx.pathx import PathIsNotNodeError
 
 # pylint:disable=protected-access
@@ -326,3 +328,49 @@ def test_build_tree(clear_database_before_test):
     assert "node1 | label: X | uuid: " in treestring
 
     group.show_tree()
+
+
+def test_cli(setup_groups):
+    """Test the CLI system"""
+
+    node = orm.Dict({}).store()
+    GroupPathX("a").add_node(node, "Node1")
+
+    runner = CliRunner()
+    output = runner.invoke(grouppathx_cli, ["show-tree", "a"])
+    assert output.exit_code == 0
+    assert "Node1" in output.stdout
+
+    output = runner.invoke(grouppathx_cli, ["show", "a"])
+    assert output.exit_code == 0
+    assert "Node1" in output.stdout
+
+    # Test the add-node sub command
+    node2 = orm.Dict({}).store()
+    output = runner.invoke(grouppathx_cli, ["add-node", "a", "Node2", node2.uuid])
+    assert output.exit_code == 0
+    assert node2 in GroupPathX("a").get_group().nodes
+    output = runner.invoke(grouppathx_cli, ["show", "a"])
+    assert output.exit_code == 0
+    assert "Node2" in output.stdout
+
+    # Test unlink
+    output = runner.invoke(grouppathx_cli, ["unlink", "a/Node2"])
+    # Unlink is only a soft delete
+    assert node2 in GroupPathX("a").get_group().nodes
+    paths = [x.key for x in GroupPathX("a")]
+    assert "Node2" not in paths
+
+    output = runner.invoke(grouppathx_cli, ["show", "a"])
+    assert output.exit_code == 0
+    assert "Node2" not in output.stdout
+
+    output = runner.invoke(grouppathx_cli, ["show", "a", "--include-deleted"])
+    assert output.exit_code == 0
+    assert "Node2" in output.stdout
+
+    # Show Alias of a node
+    output = runner.invoke(grouppathx_cli, ["alias", node.uuid])
+    assert output.exit_code == 0
+    assert "a/Node1" in output.stdout
+    assert "a/Node2" not in output.stdout

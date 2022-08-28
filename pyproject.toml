@@ -37,6 +37,10 @@ testing = [
     "pytest~=6.0",
     "pytest-cov"
 ]
+
+[project.entry-points."aiida.cmdline.data"]
+"gpx" = "aiida_grouppathx.cli:grouppathx_cli"
+
 pre-commit = [
     "pre-commit~=2.2",
     "pylint>=2.5.0,<2.9"

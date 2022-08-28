@@ -41,7 +41,7 @@ jobs:
 
     - name: Install aiida develop version
       run: |
-        pip install git+git://github.com/aiidateam/aiida-core
+        pip install git+https://github.com/aiidateam/aiida-core
       if: ${{ matrix.aiida-version == 'develop' }}
 
     - name: Install python dependencies

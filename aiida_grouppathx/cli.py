@@ -3,7 +3,6 @@ Commandline interface
 """
 import click
 
-from aiida import orm
 from aiida.cmdline.commands.cmd_data import verdi_data
 from aiida.cmdline.params import arguments
 from aiida.cmdline.utils import decorators, echo
@@ -112,6 +111,8 @@ def add_node(path, alias, node, force):
 @arguments.NODE()
 def show_alias(node):
     """Show the path(s) of a node"""
+    from aiida import orm
+
     from aiida_grouppathx.pathx import GROUP_ALIAS_KEY, GroupPathX
 
     alias_dict = node.extras.get(GROUP_ALIAS_KEY)

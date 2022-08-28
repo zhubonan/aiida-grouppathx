@@ -38,9 +38,6 @@ testing = [
     "pytest-cov"
 ]
 
-[project.entry-points."aiida.cmdline.data"]
-"gpx" = "aiida_grouppathx.cli:grouppathx_cli"
-
 pre-commit = [
     "pre-commit~=2.2",
     "pylint>=2.5.0,<2.9"
@@ -52,6 +49,10 @@ docs = [
     "furo",
     "markupsafe<2.1"
 ]
+
+[project.entry-points."aiida.cmdline.data"]
+"gpx" = 'aiida_grouppathx.cli:grouppathx_cli'
+
 
 [tool.flit.module]
 name = "aiida_grouppathx"

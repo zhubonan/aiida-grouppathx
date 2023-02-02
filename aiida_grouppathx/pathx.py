@@ -4,7 +4,7 @@ Enhanced GroupPath tool
 import enum
 from functools import wraps
 from itertools import chain
-from typing import Iterator, Optional, Union
+from typing import Iterator, Optional, Union, List
 import warnings
 
 from treelib import Tree
@@ -215,7 +215,7 @@ class GroupPathX(GroupPath):
         return False
 
     @property
-    def children(self) -> Iterator["GroupPath"]:
+    def children(self) -> Iterator["GroupPathX"]:
         """
         Iterate through all (direct) children of this path, including any nodes with alias inside the group.
         """
@@ -264,7 +264,7 @@ class GroupPathX(GroupPath):
 
             if item_type == "node":
                 # This means that the path is associated with a node
-                # Hence we composethe full path
+                # Hence we compose the full path
                 label = self.path + self.delimiter + label
 
             # Sanity check....
@@ -290,6 +290,15 @@ class GroupPathX(GroupPath):
                         warnings.warn(
                             f"invalid path encountered: {path_string}"
                         )  # pylint: disable=no-member
+
+    def __iter__(self) -> List['GroupPathX']:
+        """Iterate through all (direct) children of this path.
+        A list is build immediately to avoid any cursor invalidation errors due to the database
+        state being changed during the iteration...
+
+        For memory efficient iterations, use the ``children`` property instead.
+        """
+        return list(self.children)
 
     def walk(self, return_virtual: bool = True) -> Iterator["GroupPathX"]:
         """Recursively iterate through all children of this path."""

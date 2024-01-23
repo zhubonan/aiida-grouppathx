@@ -23,7 +23,7 @@ keywords = ["aiida", "plugin"]
 requires-python = ">=3.7"
 dependencies = [
     "aiida-core>=1.6.4,<3",
-    "treelib",
+    "treelib~=1.6.1",
 ]
 
 [project.urls]

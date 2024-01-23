@@ -127,7 +127,7 @@ class GroupPathX(GroupPath):
     def __init__(
         self,
         path: str = "",
-        cls: orm.groups.GroupMeta = orm.Group,
+        cls=orm.Group,
         warn_invalid_child: bool = True,
     ) -> None:
         """Instantiate the class.

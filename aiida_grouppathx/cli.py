@@ -72,10 +72,10 @@ def show(path, include_deleted):
         for node in group.nodes:
             row = []
             row.append(node.pk)
-            alias = node.extras.get(GROUP_ALIAS_KEY, {}).get(group.uuid, "")
+            alias = node.base.extras.get(GROUP_ALIAS_KEY, {}).get(group.uuid, "")
             row.append(alias)
             if include_deleted:
-                alias = node.extras.get(GROUP_ALIAS_KEY + "_deleted", {}).get(
+                alias = node.base.extras.get(GROUP_ALIAS_KEY + "_deleted", {}).get(
                     group.uuid, ""
                 )
                 row.append(alias)
@@ -115,7 +115,7 @@ def show_alias(node):
 
     from aiida_grouppathx.pathx import GROUP_ALIAS_KEY, GroupPathX
 
-    alias_dict = node.extras.get(GROUP_ALIAS_KEY)
+    alias_dict = node.base.extras.get(GROUP_ALIAS_KEY)
     if alias_dict is None:
         echo_error(f"Node {node} is not associated with any GroupPathX.")
     for key, value in alias_dict.items():

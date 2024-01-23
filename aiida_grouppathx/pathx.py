@@ -484,7 +484,7 @@ def delete_alias(node, group, save_previous=True):
 
 def get_alias(node, group, suffix=""):
     """Get the alias field of a Node for a specific group"""
-    extras = node.extras
+    extras = node.base.extras.all
     alias_dict = extras.get(GROUP_ALIAS_KEY + suffix, {})
     if not isinstance(alias_dict, dict):
         alias_dict = {}

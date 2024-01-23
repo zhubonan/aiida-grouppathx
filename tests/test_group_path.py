@@ -201,7 +201,7 @@ def test_attr(clear_database_before_test):
     assert isinstance(group_path.browse.a.c.d, GroupAttr)
     assert isinstance(group_path.browse.a.c.d(), GroupPathX)
     assert group_path.browse.a.c.d().path == "a/c/d"
-    assert not set(group_path.browse.__dir__()).intersection(
+    assert not set(dir(group_path.browse)).intersection(
         ["bad space", "bad@char", "_badstart"]
     )
     with pytest.raises(AttributeError):
@@ -258,7 +258,7 @@ def test_store_nodes(clear_database_before_test):
     assert group["int2"].get_node()
     assert group["int2"].is_node
     assert group["int1"].get_node() is None
-    assert node1.extras[group._extras_key] == {group.get_group().uuid: "int2"}
+    assert node1.base.extras.get(group._extras_key) == {group.get_group().uuid: "int2"}
 
     # Delete a node
     subgroup.add_node(node1, "int1")

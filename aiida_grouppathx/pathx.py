@@ -1,13 +1,12 @@
 """
 Enhanced GroupPath tool
 """
+
 import enum
+import warnings
 from functools import wraps
 from itertools import chain
 from typing import Iterator, Optional, Union
-import warnings
-
-from treelib import Tree
 
 from aiida import orm
 from aiida.common.exceptions import NotExistent
@@ -19,35 +18,36 @@ from aiida.tools.groups.paths import (
     InvalidPath,
     NoGroupsInPathError,
 )
+from treelib import Tree
 
-GROUP_ALIAS_KEY = "_group_alias"
+GROUP_ALIAS_KEY = '_group_alias'
 
 __all__ = [
-    "GroupPathX",
-    "decorate_with_label",
-    "decorate_group",
-    "decorate_node",
-    "decorate_with_exit_status",
-    "decorate_with_group_names",
-    "decorate_with_exit_status",
-    "decorate_with_uuid_first_n",
-    "decorate_with_uuid",
+    'GroupPathX',
+    'decorate_with_label',
+    'decorate_group',
+    'decorate_node',
+    'decorate_with_exit_status',
+    'decorate_with_group_names',
+    'decorate_with_exit_status',
+    'decorate_with_uuid_first_n',
+    'decorate_with_uuid',
 ]
 
 
 class GroupPathXType(enum.Enum):
     """Type of the path"""
 
-    VIRTUAL = "virtual"
-    GROUP = "group"
-    NODE = "node"
+    VIRTUAL = 'virtual'
+    GROUP = 'group'
+    NODE = 'node'
 
 
 class PathIsNodeError(Exception):
     """An exception raised when a path does not have an associated group."""
 
     def __init__(self, grouppath):
-        msg = f"This path corresponds to a node: {grouppath.path}"
+        msg = f'This path corresponds to a node: {grouppath.path}'
         super().__init__(msg)
 
 
@@ -55,7 +55,7 @@ class PathIsNotNodeError(Exception):
     """An exception raised when a path does not have an associated group."""
 
     def __init__(self, grouppath):
-        msg = f"This path does correspond to a node: {grouppath.path}"
+        msg = f'This path does correspond to a node: {grouppath.path}'
         super().__init__(msg)
 
 
@@ -63,7 +63,7 @@ class PathIsNotGroupError(Exception):
     """An exception raised when a path does not have an associated group."""
 
     def __init__(self, grouppath):
-        msg = f"This path does correspond to a path: {grouppath.path}"
+        msg = f'This path does correspond to a path: {grouppath.path}'
         super().__init__(msg)
 
 
@@ -71,7 +71,7 @@ class PathIsGroupError(Exception):
     """An exception raised when a path does not have an associated group."""
 
     def __init__(self, grouppath):
-        msg = f"This path corresponds to a group: {grouppath.path}"
+        msg = f'This path corresponds to a group: {grouppath.path}'
         super().__init__(msg)
 
 
@@ -79,7 +79,7 @@ class PathIsNotVirtualError(Exception):
     """An exception raised when a path does not have an associated group."""
 
     def __init__(self, grouppath):
-        msg = f"This path corresponds a group or a node: {grouppath.path}"
+        msg = f'This path corresponds a group or a node: {grouppath.path}'
         super().__init__(msg)
 
 
@@ -126,7 +126,7 @@ class GroupPathX(GroupPath):
 
     def __init__(
         self,
-        path: str = "",
+        path: str = '',
         cls=orm.Group,
         warn_invalid_child: bool = True,
     ) -> None:
@@ -157,13 +157,11 @@ class GroupPathX(GroupPath):
         if not parent.is_group:
             return None
         query = orm.QueryBuilder()
-        query.append(parent.cls, subclassing=False, filters={"label": parent.path})
+        query.append(parent.cls, subclassing=False, filters={'label': parent.path})
         query.append(
             orm.Node,
             with_group=parent.cls,
-            filters={
-                "extras." + self._extras_key + "." + parent.get_group().uuid: self.key
-            },
+            filters={'extras.' + self._extras_key + '.' + parent.get_group().uuid: self.key},
         )
         return query
 
@@ -188,7 +186,7 @@ class GroupPathX(GroupPath):
             return GroupPathXType.GROUP
         if self.is_node:
             return GroupPathXType.NODE
-        raise ValueError("Cannot determine the type of the path")
+        raise ValueError('Cannot determine the type of the path')
 
     @property
     def is_group(self) -> bool:
@@ -209,13 +207,11 @@ class GroupPathX(GroupPath):
         if query.count() == 1:
             return True
         if query.count() > 1:
-            raise ValueError(
-                f"There are multiple nodes having the same alias: {[entry[0] for entry in query.all()]}"
-            )
+            raise ValueError(f'There are multiple nodes having the same alias: {[entry[0] for entry in query.all()]}')
         return False
 
     @property
-    def children(self) -> Iterator["GroupPathX"]:
+    def children(self) -> Iterator['GroupPathX']:
         """
         Iterate through all (direct) children of this path, including any nodes with alias inside the group.
         """
@@ -227,17 +223,17 @@ class GroupPathX(GroupPath):
         query = orm.QueryBuilder()
         filters = {}
         if self.path:
-            filters["label"] = {"like": f"{self.path + self.delimiter}%"}
-        query.append(self.cls, subclassing=False, filters=filters, project="label")
+            filters['label'] = {'like': f'{self.path + self.delimiter}%'}
+        query.append(self.cls, subclassing=False, filters=filters, project='label')
 
         # Query sub nodes with group_alias in the extras
         node_query = orm.QueryBuilder()
-        node_query.append(self.cls, subclassing=False, filters={"label": self.path})
+        node_query.append(self.cls, subclassing=False, filters={'label': self.path})
         node_query.append(
             orm.Node,
             with_group=self.cls,
-            filters={"extras": {"has_key": self._extras_key}},
-            project=["extras." + self._extras_key],
+            filters={'extras': {'has_key': self._extras_key}},
+            project=['extras.' + self._extras_key],
         )
 
         if query.count() == 0 and self.is_virtual:
@@ -245,24 +241,22 @@ class GroupPathX(GroupPath):
 
         def node_wrapper(items):
             for item in items:
-                yield ("node", item)
+                yield ('node', item)
 
         def group_wrapper(items):
             for item in items:
-                yield ("group", item)
+                yield ('group', item)
 
         yielded = []
-        for (item_type, label) in chain(
-            group_wrapper(query.iterall()), node_wrapper(node_query.iterall())
-        ):
-            label = label[0]
+        for item_type, _label in chain(group_wrapper(query.iterall()), node_wrapper(node_query.iterall())):
+            label = _label[0]
             # Group specific label
             if isinstance(label, dict):
                 label = label.get(self.get_group().uuid)
                 if label is None:
                     continue
 
-            if item_type == "node":
+            if item_type == 'node':
                 # This means that the path is associated with a node
                 # Hence we compose the full path
                 label = self.path + self.delimiter + label
@@ -274,10 +268,7 @@ class GroupPathX(GroupPath):
 
             # Get the fully qualified path to the next level
             path_string = self._delimiter.join(path[: len(self._path_list) + 1])
-            if (
-                path_string not in yielded
-                and path[: len(self._path_list)] == self._path_list
-            ):
+            if path_string not in yielded and path[: len(self._path_list)] == self._path_list:
                 yielded.append(path_string)
                 try:
                     yield GroupPathX(
@@ -287,11 +278,9 @@ class GroupPathX(GroupPath):
                     )
                 except InvalidPath:
                     if self._warn_invalid_child:
-                        warnings.warn(
-                            f"invalid path encountered: {path_string}"
-                        )  # pylint: disable=no-member
+                        warnings.warn(f'invalid path encountered: {path_string}')  # pylint: disable=no-member
 
-    def __iter__(self) -> Iterator["GroupPathX"]:
+    def __iter__(self) -> Iterator['GroupPathX']:
         """Iterate through all (direct) children of this path.
         A list is build immediately to avoid any cursor invalidation errors due to the database
         state being changed during the iteration...
@@ -300,7 +289,7 @@ class GroupPathX(GroupPath):
         """
         return iter(list(self.children))
 
-    def walk(self, return_virtual: bool = True) -> Iterator["GroupPathX"]:
+    def walk(self, return_virtual: bool = True) -> Iterator['GroupPathX']:
         """Recursively iterate through all children of this path."""
         for child in self.children:
             if return_virtual or not child.is_virtual:
@@ -320,7 +309,7 @@ class GroupPathX(GroupPath):
                 if val is not None:
                     suffix.append(val)
             if suffix:
-                name = name + " " + " | ".join(suffix)
+                name = name + ' ' + ' | '.join(suffix)
 
         if tree is None:
             tree = Tree()
@@ -349,10 +338,10 @@ class GroupPathX(GroupPath):
         tree = self._build_tree(decorate=decorate)
         return tree.show(**kwargs)
 
-    def __truediv__(self, path: str) -> "GroupPathX":
+    def __truediv__(self, path: str) -> 'GroupPathX':
         """Return a child ``GroupPathX``, with a new path formed by appending ``path`` to the current path."""
         if not isinstance(path, str):
-            raise TypeError(f"path is not a string: {path}")
+            raise TypeError(f'path is not a string: {path}')
         path = self._validate_path(path)
         child = GroupPathX(
             path=self.path + self.delimiter + path if self.path else path,
@@ -362,7 +351,7 @@ class GroupPathX(GroupPath):
         return child
 
     @property
-    def parent(self) -> Optional["GroupPathX"]:
+    def parent(self) -> Optional['GroupPathX']:
         """Return the parent path."""
         if self.path_list:
             return GroupPathX(
@@ -373,7 +362,7 @@ class GroupPathX(GroupPath):
         return None
 
     @requires_not_node
-    def add_node(self, node: Union[orm.Node, "GroupAttr"], alias: str, force=False):
+    def add_node(self, node: Union[orm.Node, 'GroupAttr'], alias: str, force=False):
         """
         Add an node to the group with an alias.
 
@@ -381,7 +370,7 @@ class GroupPathX(GroupPath):
         """
         if not REGEX_ATTR.match(alias):
             warnings.warn(
-                f"Alias {alias} is not valid Python identifier - you may consider using one for easier access."
+                f'Alias {alias} is not valid Python identifier - you may consider using one for easier access.'
             )
         if self.is_virtual:
             self.get_or_create_group()
@@ -394,9 +383,7 @@ class GroupPathX(GroupPath):
 
         if existing_name is not None and alias != existing_name:
             if force is False:
-                raise ValueError(
-                    f"Cannot add {node} with alias: {alias}, because it already has one: {existing_name}."
-                )
+                raise ValueError(f'Cannot add {node} with alias: {alias}, because it already has one: {existing_name}.')
 
         # Check if this path is in use already
         target_path = self[alias]
@@ -417,14 +404,14 @@ class GroupPathX(GroupPath):
         """Update the alias of this Node"""
         if not REGEX_ATTR.match(alias):
             warnings.warn(
-                f"Alias {alias} is not valid Python identifier - you may consider using one for easier access."
+                f'Alias {alias} is not valid Python identifier - you may consider using one for easier access.'
             )
 
         if not self.is_node:
             raise PathIsGroupError(self)
         node = self.get_node()
         if not self.parent[alias].is_virtual:
-            raise ValueError(f"Alias {alias} has been used already.")
+            raise ValueError(f'Alias {alias} has been used already.')
         set_alias(node, self.parent.get_group(), alias)
 
     @requires_node
@@ -456,7 +443,7 @@ class GroupPathX(GroupPath):
         return NodeAttr(self)
 
 
-def set_alias(node, group, alias: str, suffix=""):
+def set_alias(node, group, alias: str, suffix=''):
     """Set the alias field of a Node for a specific group"""
     extras = node.extras
     alias_dict = extras.get(GROUP_ALIAS_KEY + suffix, {})
@@ -478,11 +465,11 @@ def delete_alias(node, group, save_previous=True):
     node.set_extra(GROUP_ALIAS_KEY, alias_dict)
     # Save previously used alias
     if save_previous:
-        set_alias(node, group, previous_alias, "_deleted")
+        set_alias(node, group, previous_alias, '_deleted')
     return node
 
 
-def get_alias(node, group, suffix=""):
+def get_alias(node, group, suffix=''):
     """Get the alias field of a Node for a specific group"""
     extras = node.base.extras.all
     alias_dict = extras.get(GROUP_ALIAS_KEY + suffix, {})
@@ -496,24 +483,20 @@ class NodeAttr(GroupAttr):
 
     def __dir__(self):
         """Return a list of available attributes."""
-        return [
-            c.path_list[-1]
-            for c in self._group_path.children
-            if REGEX_ATTR.match(c.path_list[-1]) and c.is_node
-        ]
+        return [c.path_list[-1] for c in self._group_path.children if REGEX_ATTR.match(c.path_list[-1]) and c.is_node]
 
 
 def decorate_node(path) -> Optional[str]:
     """Decrate paths tha are nodes with ``*``"""
     if path.is_node:
-        return "*"
+        return '*'
     return None
 
 
 def decorate_group(path) -> Optional[str]:
     """Decrate paths that are groups with ``*``"""
     if path.is_group:
-        return "*"
+        return '*'
     return None
 
 
@@ -524,8 +507,8 @@ def decorate_with_exit_status(path) -> Optional[str]:
         node = path.get_node()
         if isinstance(node, ProcessNode):
             if node.is_finished:
-                return f"[{node.exit_status}]"
-            return f"[{node.process_state.value}]"
+                return f'[{node.exit_status}]'
+            return f'[{node.process_state.value}]'
     return None
 
 
@@ -542,7 +525,7 @@ def decorate_with_uuid_first_n(n_char=12):
         """Decrate paths that are nodes with process states"""
         if path.is_node:
             node = path.get_node()
-            return f"{node.uuid[:n_char]}"
+            return f'{node.uuid[:n_char]}'
         return None
 
     return func
@@ -552,7 +535,7 @@ def decorate_with_uuid(path) -> Optional[str]:
     """Decrate the nodes with their UUIDs"""
     if path.is_node:
         node = path.get_node()
-        return f"{node.uuid[:12]}"
+        return f'{node.uuid[:12]}'
     return None
 
 
@@ -560,7 +543,7 @@ def decorate_with_label(path) -> Optional[str]:
     """Decrate nodes with their labels"""
     if path.is_node:
         node = path.get_node()
-        return f"{node.label}"
+        return f'{node.label}'
     return None
 
 
@@ -568,8 +551,8 @@ def decorate_with_group_names(path) -> Optional[str]:
     """Decrate nodes with the name of the group they belong to"""
     if path.is_node:
         node = path.get_node()
-        query = orm.QueryBuilder().append(orm.Node, filters={"id": node.id})
-        query.append(orm.Group, with_node=orm.Node, project=["label"])
+        query = orm.QueryBuilder().append(orm.Node, filters={'id': node.id})
+        query.append(orm.Group, with_node=orm.Node, project=['label'])
         groups = [entry[0] for entry in query.all()]
-        return ", ".join(groups)
+        return ', '.join(groups)
     return None

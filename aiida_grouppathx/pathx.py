@@ -445,24 +445,22 @@ class GroupPathX(GroupPath):
 
 def set_alias(node, group, alias: str, suffix=''):
     """Set the alias field of a Node for a specific group"""
-    extras = node.extras
-    alias_dict = extras.get(GROUP_ALIAS_KEY + suffix, {})
+    alias_dict = node.base.extras.get(GROUP_ALIAS_KEY + suffix, {})
     if not isinstance(alias_dict, dict):
         alias_dict = {}
     alias_dict[group.uuid] = alias
-    node.set_extra(GROUP_ALIAS_KEY + suffix, alias_dict)
+    node.base.extras.set(GROUP_ALIAS_KEY + suffix, alias_dict)
     return node
 
 
 def delete_alias(node, group, save_previous=True):
     """Delete the alias field of a Node for a specific group"""
-    extras = dict(node.extras)
-    alias_dict = extras.get(GROUP_ALIAS_KEY, {})
+    alias_dict = node.base.extras.get(GROUP_ALIAS_KEY, {})
     if not isinstance(alias_dict, dict):
         alias_dict = {}
 
     previous_alias = alias_dict.pop(group.uuid, None)
-    node.set_extra(GROUP_ALIAS_KEY, alias_dict)
+    node.base.extras.set(GROUP_ALIAS_KEY, alias_dict)
     # Save previously used alias
     if save_previous:
         set_alias(node, group, previous_alias, '_deleted')
@@ -471,8 +469,7 @@ def delete_alias(node, group, save_previous=True):
 
 def get_alias(node, group, suffix=''):
     """Get the alias field of a Node for a specific group"""
-    extras = node.base.extras.all
-    alias_dict = extras.get(GROUP_ALIAS_KEY + suffix, {})
+    alias_dict = node.base.extras.get(GROUP_ALIAS_KEY + suffix, {})
     if not isinstance(alias_dict, dict):
         alias_dict = {}
     return alias_dict.get(group.uuid)

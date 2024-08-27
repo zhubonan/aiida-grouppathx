@@ -430,10 +430,10 @@ class GroupPathX(GroupPath):
         """List all nodes that do not have any alias in this group"""
         if not self.is_group:
             return []
-        existing = [path.get_node().id for path in self.children if path.is_node]
+        existing = [path.get_node().pk for path in self.children if path.is_node]
         missing = []
         for node in self.get_group().nodes:
-            if node.id not in existing:
+            if node.pk not in existing:
                 missing.append(node)
         return missing
 

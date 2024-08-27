@@ -114,7 +114,7 @@ def show_alias(node):
     if alias_dict is None:
         echo_error(f'Node {node} is not associated with any GroupPathX.')
     for key, value in alias_dict.items():
-        group = orm.Group.get(uuid=key)
+        group = orm.Group.collection.get(uuid=key)
         path_obj = GroupPathX(group.label)[value]
         click.echo(path_obj.path)
 

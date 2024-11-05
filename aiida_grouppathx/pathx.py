@@ -139,6 +139,18 @@ class GroupPathX(GroupPath):
         """
         super().__init__(path=path, cls=cls, warn_invalid_child=warn_invalid_child)
         self._extras_key = GROUP_ALIAS_KEY
+        self._uuid = None
+
+    @property
+    def uuid(self) -> Union[str, None]:
+        """Return the uuid of the group or node associated with this path if exists"""
+        gp = self.get_group()
+        if gp:
+            return gp.uuid
+        node = self.get_node()
+        if node:
+            return node.uuid
+        return None
 
     @property
     def not_ambigious(self):
@@ -248,11 +260,12 @@ class GroupPathX(GroupPath):
                 yield ('group', item)
 
         yielded = []
+        group_uuid = self.uuid
         for item_type, _label in chain(group_wrapper(query.iterall()), node_wrapper(node_query.iterall())):
             label = _label[0]
             # Group specific label
             if isinstance(label, dict):
-                label = label.get(self.get_group().uuid)
+                label = label.get(group_uuid)
                 if label is None:
                     continue
 

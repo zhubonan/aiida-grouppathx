@@ -133,13 +133,21 @@ class GroupPathX(GroupPath):
         node_cache=None,
         group_cache=None,
     ) -> None:
-        """Instantiate the class.
+        """
+        Instantiate a GroupPathX object.
+        A GroupPathX object may represent group as well as a node, which resembles a file system path.
+
+        The underlying group/node can be passed in `node_cache` or `group_cache` to avoid querying the database.
+        This is useful when the underlying group/node are not expected to change during the lifetime of this object.
+        To enable caching, use the`use_cache` context manager when iterating a `GroupPathX` object.
 
         :param path: The initial path of the group.
         :param cls: The subclass of `Group` to operate on.
         :param warn_invalid_child: Issue a warning, when iterating children, if a child path is invalid.
-
+        :param node_cache: A cache of the node associated with this path.
+        :param group_cache: A cache of the group associated with this path.
         """
+
         super().__init__(path=path, cls=cls, warn_invalid_child=warn_invalid_child)
         self._extras_key = GROUP_ALIAS_KEY
         self._uuid = None
@@ -369,12 +377,14 @@ class GroupPathX(GroupPath):
             tree.create_node(name, self.path)
         else:
             tree.create_node(name, self.path, parent=parent)
-        for child in self.children:
-            child._build_tree(  # pylint: disable=protected-access
-                tree,
-                parent=self.path,
-                decorate=decorate,
-            )
+        # Enable cache for children since we are just building the tree
+        with use_cache(self):
+            for child in self.children:
+                child._build_tree(  # pylint: disable=protected-access
+                    tree,
+                    parent=self.path,
+                    decorate=decorate,
+                )
         return tree
 
     def show_tree(self, *decorate, **kwargs):
@@ -609,10 +619,19 @@ def decorate_with_group_names(path) -> Optional[str]:
 
 
 @contextmanager
-def with_cache(gp: GroupPathX):
+def use_cache(gp: GroupPathX):
     """Context manager to temporarily enable caching when iterating a GroupPath object"""
     old = gp.add_cache_in_iter
     gp.add_cache_in_iter = True
+    yield gp
+    gp.add_cache_in_iter = old
+
+
+@contextmanager
+def no_cache(gp: GroupPathX):
+    """Context manager to temporarily enable caching when iterating a GroupPath object"""
+    old = gp.add_cache_in_iter
+    gp.add_cache_in_iter = False
     yield gp
     gp.add_cache_in_iter = old
 
@@ -624,16 +643,3 @@ def only_nodes(gp: GroupPathX):
     gp.only_nodes_in_iter = True
     yield gp
     gp.only_nodes_in_iter = old
-
-
-@contextmanager
-def only_nodes_with_cache(gp: GroupPathX):
-    """Context manager to  temporarily limit the iteration to nodes only and enable caching
-    when iterating a GroupPath object"""
-    old1 = gp.only_nodes_in_iter
-    old2 = gp.add_cache_in_iter
-    gp.only_nodes_in_iter = True
-    gp.add_cache_in_iter = True
-    yield gp
-    gp.only_nodes_in_iter = old1
-    gp.add_cache_in_iter = old2

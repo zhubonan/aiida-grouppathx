@@ -8,7 +8,7 @@ Manager for keep X number of active jobs to run at a time, which is useful when
 import time
 from typing import Callable, Optional
 
-from .pathx import GroupPathX, only_nodes_with_cache
+from .pathx import GroupPathX
 
 
 class GroupLauncher:
@@ -57,17 +57,15 @@ class GroupLauncher:
         """Sleep for a while before checking the status of the jobs."""
         time.sleep(self.sleep_seconds)
 
-    def launch_loop(self):
+    def launch_loop(self, dryrun=False):
         """The main launch for launch underlying jobs"""
         obj_list = self.source_key_obj_pairs
         if obj_list is None:
-            with only_nodes_with_cache(self.source_gp):
-                obj_list = [(path.key, path.get_node()) for path in self.source_gp]
+            obj_list = [(path.key, path.get_node()) for path in self.source_gp.fast_iter]
 
         while True:
             tmp = time.time()
-            with only_nodes_with_cache(self.source_gp):
-                launched = [[path.key, path.get_node()] for path in self.target_group]
+            launched = [[path.key, path.get_node()] for path in self.target_group.fast_iter]
             launched_keys = next(zip(*launched))
             n_running = sum([1 for key, node in launched if not node.is_finished])
             self.report(f'Total number of running jobs: {n_running}')
@@ -82,10 +80,17 @@ class GroupLauncher:
             if nfree > 0:
                 self.report(f'Launching {nfree} jobs...')
                 # Launch jobs
-                for key, job in job_left[:nfree]:
-                    node, label = self.callback(job, key)
-                    self.target_group.add_node(node, label, force=self.force)
-                self.report(f'Launched {nfree} jobs...')
+                to_launch = job_left[:nfree]
+                self.report(f'Launched {len(to_launch)} jobs...')
+                if not dryrun:
+                    for key, job in to_launch:
+                        node, label = self.callback(job, key)
+                        self.target_group.add_node(node, label, force=self.force)
+                else:
+                    labels = [entry[0] for entry in to_launch]
+                    self.report(f'DRYRUN: About to launch {len(to_launch)} jobs with labels: {labels}...')
+                    break
+
             self.sleep()
 
     def report(self, message):

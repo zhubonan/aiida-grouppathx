@@ -260,6 +260,15 @@ class GroupPathX(GroupPath):
         # No children if the Path corresponds to a Node
         return self._get_children()
 
+    @property
+    def fast_iter(self) -> Iterator['GroupPathX']:
+        """
+        Iterate through all (direct) children of this path, including any nodes with alias inside the group.
+        """
+        # No children if the Path corresponds to a Node
+        with use_cache(self):
+            return list(self._get_children())
+
     def _get_children(self, add_cache=None, only_nodes=None) -> Iterator['GroupPathX']:
         """
         Iterate through all (direct) children of this path, including any nodes with alias inside the group.

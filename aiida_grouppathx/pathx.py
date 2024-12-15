@@ -130,8 +130,6 @@ class GroupPathX(GroupPath):
         path: str = '',
         cls=orm.Group,
         warn_invalid_child: bool = True,
-        is_node=None,
-        is_group=None,
         node_cache=None,
         group_cache=None,
     ) -> None:
@@ -147,16 +145,12 @@ class GroupPathX(GroupPath):
         self._uuid = None
         self.node_cache = node_cache
         self.group_cache = group_cache
-        self._is_group = is_group
-        self._is_node = is_node
         self.only_nodes_in_iter = False
         self.add_cache_in_iter = False
 
     def _clear_cache(self):
         self.node_cache = None
         self.group_cache = None
-        self._is_group = None
-        self._is_node = None
 
     def get_group(self):
         if self.group_cache is not None:
@@ -211,7 +205,6 @@ class GroupPathX(GroupPath):
             node = query.one()[0]
         except NotExistent:
             return None
-        self._is_node = True
         return node
 
     @property
@@ -228,8 +221,6 @@ class GroupPathX(GroupPath):
     @property
     def is_group(self) -> bool:
         """Return whether there is one or more concrete groups associated with this path."""
-        if self._is_group is not None:
-            return self._is_group
         if self.group_cache is not None:
             return True
         return len(self.group_ids) > 0
@@ -237,15 +228,11 @@ class GroupPathX(GroupPath):
     @property
     def is_virtual(self) -> bool:
         """Return whether there is one or more concrete groups associated with this path or a Node."""
-        if self._is_group is False and self._is_node is False:
-            return True
         return len(self.group_ids) == 0 and not self.is_node
 
     @property
     def is_node(self) -> bool:
         """Check this there is an unique associated node for this path"""
-        if self._is_node is not None:
-            return self._is_node
         if self.node_cache is not None:
             return True
         query = self._get_node_query()
@@ -334,15 +321,11 @@ class GroupPathX(GroupPath):
             path_string = self._delimiter.join(path[: len(self._path_list) + 1])
             if path_string not in yielded and path[: len(self._path_list)] == self._path_list:
                 yielded.append(path_string)
-                is_node = True if item_type == 'node' else False
-                is_group = True if item_type == 'group' else False
                 try:
                     yield GroupPathX(
                         path=path_string,
                         cls=self.cls,
                         warn_invalid_child=self._warn_invalid_child,
-                        is_node=is_node,
-                        is_group=is_group,
                         node_cache=projected_items[1] if item_type == 'node' and add_cache else None,
                         group_cache=projected_items[1] if item_type == 'group' and add_cache else None,
                     )

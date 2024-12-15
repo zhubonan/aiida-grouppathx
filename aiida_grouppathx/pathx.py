@@ -4,6 +4,7 @@ Enhanced GroupPath tool
 
 import enum
 import warnings
+from contextlib import contextmanager
 from functools import wraps
 from itertools import chain
 from typing import Iterator, Optional, Union
@@ -129,6 +130,10 @@ class GroupPathX(GroupPath):
         path: str = '',
         cls=orm.Group,
         warn_invalid_child: bool = True,
+        is_node=None,
+        is_group=None,
+        node_cache=None,
+        group_cache=None,
     ) -> None:
         """Instantiate the class.
 
@@ -140,6 +145,23 @@ class GroupPathX(GroupPath):
         super().__init__(path=path, cls=cls, warn_invalid_child=warn_invalid_child)
         self._extras_key = GROUP_ALIAS_KEY
         self._uuid = None
+        self.node_cache = node_cache
+        self.group_cache = group_cache
+        self._is_group = is_group
+        self._is_node = is_node
+        self.only_nodes_in_iter = False
+        self.add_cache_in_iter = False
+
+    def _clear_cache(self):
+        self.node_cache = None
+        self.group_cache = None
+        self._is_group = None
+        self._is_node = None
+
+    def get_group(self):
+        if self.group_cache is not None:
+            return self.group_cache
+        return super().get_group()
 
     @property
     def uuid(self) -> Union[str, None]:
@@ -179,6 +201,8 @@ class GroupPathX(GroupPath):
 
     def get_node(self) -> Optional[orm.Node]:
         """Get an associated node for this group Path if exists"""
+        if self.node_cache is not None:
+            return self.node_cache
 
         query = self._get_node_query()
         if query is None:
@@ -187,6 +211,7 @@ class GroupPathX(GroupPath):
             node = query.one()[0]
         except NotExistent:
             return None
+        self._is_node = True
         return node
 
     @property
@@ -203,16 +228,26 @@ class GroupPathX(GroupPath):
     @property
     def is_group(self) -> bool:
         """Return whether there is one or more concrete groups associated with this path."""
+        if self._is_group is not None:
+            return self._is_group
+        if self.group_cache is not None:
+            return True
         return len(self.group_ids) > 0
 
     @property
     def is_virtual(self) -> bool:
         """Return whether there is one or more concrete groups associated with this path or a Node."""
+        if self._is_group is False and self._is_node is False:
+            return True
         return len(self.group_ids) == 0 and not self.is_node
 
     @property
     def is_node(self) -> bool:
         """Check this there is an unique associated node for this path"""
+        if self._is_node is not None:
+            return self._is_node
+        if self.node_cache is not None:
+            return True
         query = self._get_node_query()
         if query is None:
             return False
@@ -227,6 +262,15 @@ class GroupPathX(GroupPath):
         """
         Iterate through all (direct) children of this path, including any nodes with alias inside the group.
         """
+        # No children if the Path corresponds to a Node
+        return self._get_children()
+
+    def _get_children(self, add_cache=None, only_nodes=None) -> Iterator['GroupPathX']:
+        """
+        Iterate through all (direct) children of this path, including any nodes with alias inside the group.
+        """
+        add_cache = self.add_cache_in_iter if add_cache is None else add_cache
+        only_nodes = self.only_nodes_in_iter if only_nodes is None else only_nodes
 
         # No children if the Path corresponds to a Node
         if self.is_node:
@@ -236,7 +280,7 @@ class GroupPathX(GroupPath):
         filters = {}
         if self.path:
             filters['label'] = {'like': f'{self.path + self.delimiter}%'}
-        query.append(self.cls, subclassing=False, filters=filters, project='label')
+        query.append(self.cls, subclassing=False, filters=filters, project='label' if not add_cache else ['label', '*'])
 
         # Query sub nodes with group_alias in the extras
         node_query = orm.QueryBuilder()
@@ -245,7 +289,7 @@ class GroupPathX(GroupPath):
             orm.Node,
             with_group=self.cls,
             filters={'extras': {'has_key': self._extras_key}},
-            project=['extras.' + self._extras_key],
+            project=['extras.' + self._extras_key] if not add_cache else ['extras.' + self._extras_key, '*'],
         )
 
         if query.count() == 0 and self.is_virtual:
@@ -261,8 +305,15 @@ class GroupPathX(GroupPath):
 
         yielded = []
         group_uuid = self.uuid
-        for item_type, _label in chain(group_wrapper(query.iterall()), node_wrapper(node_query.iterall())):
-            label = _label[0]
+
+        # Are we in node-only mode?
+        if only_nodes:
+            iter_obj = node_wrapper(node_query.iterall())
+        else:
+            iter_obj = chain(group_wrapper(query.iterall()), node_wrapper(node_query.iterall()))
+
+        for item_type, projected_items in iter_obj:
+            label = projected_items[0]
             # Group specific label
             if isinstance(label, dict):
                 label = label.get(group_uuid)
@@ -283,11 +334,17 @@ class GroupPathX(GroupPath):
             path_string = self._delimiter.join(path[: len(self._path_list) + 1])
             if path_string not in yielded and path[: len(self._path_list)] == self._path_list:
                 yielded.append(path_string)
+                is_node = True if item_type == 'node' else False
+                is_group = True if item_type == 'group' else False
                 try:
                     yield GroupPathX(
                         path=path_string,
                         cls=self.cls,
                         warn_invalid_child=self._warn_invalid_child,
+                        is_node=is_node,
+                        is_group=is_group,
+                        node_cache=projected_items[1] if item_type == 'node' and add_cache else None,
+                        group_cache=projected_items[1] if item_type == 'group' and add_cache else None,
                     )
                 except InvalidPath:
                     if self._warn_invalid_child:
@@ -566,3 +623,34 @@ def decorate_with_group_names(path) -> Optional[str]:
         groups = [entry[0] for entry in query.all()]
         return ', '.join(groups)
     return None
+
+
+@contextmanager
+def with_cache(gp: GroupPathX):
+    """Context manager to temporarily enable caching when iterating a GroupPath object"""
+    old = gp.add_cache_in_iter
+    gp.add_cache_in_iter = True
+    yield gp
+    gp.add_cache_in_iter = old
+
+
+@contextmanager
+def only_nodes(gp: GroupPathX):
+    """Context manager to temporarily limit the iteration to nodes only when iterating a GroupPath object"""
+    old = gp.only_nodes_in_iter
+    gp.only_nodes_in_iter = True
+    yield gp
+    gp.only_nodes_in_iter = old
+
+
+@contextmanager
+def only_nodes_with_cache(gp: GroupPathX):
+    """Context manager to  temporarily limit the iteration to nodes only and enable caching
+    when iterating a GroupPath object"""
+    old1 = gp.only_nodes_in_iter
+    old2 = gp.add_cache_in_iter
+    gp.only_nodes_in_iter = True
+    gp.add_cache_in_iter = True
+    yield gp
+    gp.only_nodes_in_iter = old1
+    gp.add_cache_in_iter = old2

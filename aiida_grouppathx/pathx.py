@@ -471,6 +471,32 @@ class GroupPathX(GroupPath):
         set_alias(node, group, alias)
         self.get_group().add_nodes(node)
 
+    def add_nodes(self, nodes: dict, force=False):
+        """
+        Add multiple node to the group with an alias.
+
+        A group will be created if the path is virtual.
+        """
+        if self.is_virtual:
+            self.get_or_create_group()
+
+        # Check if the node to be added has an existing name for this group
+        group = self.get_group()
+        aliases = list(nodes.keys())
+        existing_names = [path.key for path in self.fast_iter]
+        for alias in aliases:
+            if alias in existing_names:
+                if force is False:
+                    raise ValueError(f'Cannot add {nodes[alias]} with alias: {alias}, because it already has one.')
+
+        # Now finished checking set the alias and add the nodes to the group
+        for alias in aliases:
+            if alias in existing_names:
+                self[alias].unlink()
+            set_alias(nodes[alias], group, alias)
+        # Add the nodes in bulk
+        self.get_group().add_nodes(nodes.values())
+
     @requires_node
     def rename(self, alias: str):
         """Update the alias of this Node"""

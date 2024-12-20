@@ -41,7 +41,7 @@ class GroupLauncher:
         :param source_key_obj_pairs: A list of key and object pairs to launch jobs from, instead of a source group path.
         :param sleep_seconds: The number of seconds to sleep before checking the status of the jobs.
         """
-        self.target_group = target_gp
+        self.target_gp = target_gp
         self.source_gp = source_gp
         self.source_key_obj_pairs = source_key_obj_pairs
         self.max_concurrent = max_concurrent
@@ -57,20 +57,36 @@ class GroupLauncher:
         """Sleep for a while before checking the status of the jobs."""
         time.sleep(self.sleep_seconds)
 
-    def launch_loop(self, dryrun=False):
-        """The main launch for launch underlying jobs"""
+    def launch_loop(self, dryrun=False, dynamic_path=False, nostop=False):
+        """
+        The main launch for launch underlying jobs
+
+        :param dryrn: Whether to dryrun the launch.
+        :param dynamic_path: The source group maybe updated dynamically.
+        :param nostop: If True, the launch loop will not stop even if all jobs are finished.
+
+        """
+        # Create the target group if it does not exist
+        if self.target_gp.is_virtual:
+            self.target_gp.get_or_create_group()
+
+        # Obtain the list of objects to launch from the source group or the list of key-object pairs
         obj_list = self.source_key_obj_pairs
         if obj_list is None:
             obj_list = [(path.key, path.get_node()) for path in self.source_gp.fast_iter]
-
+        niter = 0
         while True:
+            # Update the list of objects to launch if the source group is updated dynamically
+            if niter != 0 and dynamic_path:
+                obj_list = [(path.key, path.get_node()) for path in self.source_gp.fast_iter]
             tmp = time.time()
-            launched = [[path.key, path.get_node()] for path in self.target_group.fast_iter]
-            launched_keys = next(zip(*launched))
+            launched = [[path.key, path.get_node()] for path in self.target_gp.fast_iter]
+            launched_keys = [key[0] for key in launched]
             n_running = sum([1 for key, node in launched if not node.is_finished])
             self.report(f'Total number of running jobs: {n_running}')
             job_left = [[key, node] for key, node in obj_list if key not in launched_keys]
-            if len(job_left) == 0:
+            # Stop the loop if there are no jobs to launch left
+            if len(job_left) == 0 and not nostop:
                 print('No job to launch left - stopping')
                 break
             self.report(f'Total number of jobs to run : {len(job_left)}')
@@ -85,13 +101,14 @@ class GroupLauncher:
                 if not dryrun:
                     for key, job in to_launch:
                         node, label = self.callback(job, key)
-                        self.target_group.add_node(node, label, force=self.force)
+                        self.target_gp.add_node(node, label, force=self.force)
                 else:
                     labels = [entry[0] for entry in to_launch]
                     self.report(f'DRYRUN: About to launch {len(to_launch)} jobs with labels: {labels}...')
                     break
 
             self.sleep()
+            niter += 1
 
     def report(self, message):
         """Report the status of the jobs."""

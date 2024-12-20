@@ -132,6 +132,7 @@ class GroupPathX(GroupPath):
         warn_invalid_child: bool = True,
         node_cache=None,
         group_cache=None,
+        verbose=False,
     ) -> None:
         """
         Instantiate a GroupPathX object.
@@ -146,6 +147,7 @@ class GroupPathX(GroupPath):
         :param warn_invalid_child: Issue a warning, when iterating children, if a child path is invalid.
         :param node_cache: A cache of the node associated with this path.
         :param group_cache: A cache of the group associated with this path.
+        :param verbose: Print debug messages.
         """
 
         super().__init__(path=path, cls=cls, warn_invalid_child=warn_invalid_child)
@@ -155,6 +157,7 @@ class GroupPathX(GroupPath):
         self.group_cache = group_cache
         self.only_nodes_in_iter = False
         self.add_cache_in_iter = False
+        self._verbose = verbose
 
     def _clear_cache(self):
         self.node_cache = None
@@ -440,7 +443,7 @@ class GroupPathX(GroupPath):
 
         A group will be created if the path is virtual.
         """
-        if not REGEX_ATTR.match(alias):
+        if not REGEX_ATTR.match(alias) and self._verbose:
             warnings.warn(
                 f'Alias {alias} is not valid Python identifier - you may consider using one for easier access.'
             )

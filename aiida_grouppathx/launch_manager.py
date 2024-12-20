@@ -57,7 +57,7 @@ class GroupLauncher:
         """Sleep for a while before checking the status of the jobs."""
         time.sleep(self.sleep_seconds)
 
-    def launch_loop(self, dryrun=False, dynamic_path=False, nostop=False):
+    def launch(self, dryrun=False, dynamic_path=False, nostop=False):
         """
         The main launch for launch underlying jobs
 
@@ -109,6 +109,8 @@ class GroupLauncher:
 
             self.sleep()
             niter += 1
+
+    launch_loop = launch  # Alias for compatibility
 
     def report(self, message):
         """Report the status of the jobs."""

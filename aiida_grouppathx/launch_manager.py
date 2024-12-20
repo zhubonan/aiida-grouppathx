@@ -10,8 +10,14 @@ from typing import Callable, Optional
 
 from .pathx import GroupPathX
 
+__all__ = ['GroupLauncher']
+
 
 class GroupLauncher:
+    """
+    Job launcher based on GroupPathX that keeps X number of active jobs to run at a time.
+    """
+
     def __init__(
         self,
         target_gp: GroupPathX,

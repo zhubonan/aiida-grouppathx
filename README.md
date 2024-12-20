@@ -14,16 +14,17 @@ intended to help developers get started with their AiiDA plugins.
 
 Interactive example at: [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zhubonan/aiida-nbexamples/HEAD)
 
+### Organize AiiDA data with a file-system-like interface
 
- This package is provides a enhanced version of `GroupPath` - `GroupPathX`.
- The main feature is that it allows nodes stored under a group to be *named* by an alias.
- This way, one can address a specific `Node` as `GroupPath('mygroup/structure1')`.
- In addition, a `show_tree` method is provided for visualising the content of a specific `GroupPathX`,
- similiar to the command line tool `tree` that works on the file system.
- The goal is to provide a way for managing data with an interface what is similar to a file system based approach.
+This package provides a enhanced version of `GroupPath` - `GroupPathX`.
+The main feature is that it allows nodes stored under a group to be *named* by an alias.
+This way, one can address a specific `Node` as `GroupPath('mygroup/structure1')`.
+In addition, a `show_tree` method is provided for visualising the content of a specific `GroupPathX`,
+similar to the command line tool `tree` that works on the file system.
+The goal is to provide a way for managing data with an interface what is similar to a file system based approach.
 
- ```
- tree aiida_grouppathx
+```
+tree aiida_grouppathx
 
 aiida_grouppathx
 ├── __init__.py
@@ -111,6 +112,32 @@ Please see the `pathx.py` for the extended methods, and the official documentati
 
 The package does not change how `Group` and `Node` operates in the AiiDA.
 It is only built on top of the existing system as an alternative way to access the underlying data.
+
+The nodes under a `GroupPathX` can be be added using `add_node` or `add_nodes` methods.
+Existing node can be deleted or rename using `unlink` or `rename` methods.
+Note that `unlink` does not dissociate the node from the actual group, but only removes its alias stored
+inside the `extras` that is used by this package
+
+## Keeping a limited number of active jobs
+
+When performing high-throughput workflows, it may be necessary to limit the number of active jobs to avoid overloading the remote computer.
+We provide a `GroupLauncher` method to achieve this.
+The idea is to use a group path of jobs inputs as inputs,
+and store the launched jobs in another `GropuPathX`, for example:
+
+```python
+from aiida_grouppathx import GroupPathX, GroupLauncher
+launcher = GroupLauncher(GroupPathX('target_group'), max_concurrent=200, callback=launch_relax, source_gp=GroupPathX('source_group'))
+launcher.launch()
+```
+
+Here the a callback function `launch_relax` is called for each node in the `source_group` with the node and its alias as the input arguments.
+This callback function should launch the calculation/workchain and return a tuple of the launched process
+and its alias to store inside the `target_group`.
+
+Instead of using a `GroupPathX` as the source, one can also use a list of nodes and alias pairs the source by
+passing them through the `source_key_obj_pairs` keyword argument.
+
 
 ## Installation
 

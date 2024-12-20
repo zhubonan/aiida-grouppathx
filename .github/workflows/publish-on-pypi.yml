@@ -30,4 +30,4 @@ jobs:
         flit publish
       env:
         FLIT_USERNAME: __token__
-        FLIT_PASSWORD:  ${{ secrets.pypi_token }}
+        FLIT_PASSWORD:  ${{ secrets.PYPI_API_TOKEN }}

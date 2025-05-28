@@ -91,8 +91,8 @@ class GroupLauncher:
             tmp = time.time()
             launched = [[path.key, path.get_node()] for path in self.target_gp.fast_iter]
             launched_keys = [key[0] for key in launched]
-            n_running = sum([1 for key, node in launched if not node.is_finished])
-            self.report(f'Total number of running jobs: {n_running}')
+            num_running = sum(1 for _, node in launched if not node.is_sealed)
+            self.report(f'Total number of running jobs: {num_running}')
             job_left = [[key, node] for key, node in obj_list if key not in launched_keys]
             # Stop the loop if there are no jobs to launch left
             if len(job_left) == 0 and not nostop:
@@ -101,11 +101,12 @@ class GroupLauncher:
             self.report(f'Total number of jobs to run : {len(job_left)}')
             tmp = time.time() - tmp
             self.report(f'Time elapsed to gather jobs: {tmp:.2f} seconds')
-            nfree = self.max_concurrent - n_running
-            if nfree > 0:
-                self.report(f'Launching {nfree} jobs...')
+            self.report(f'Slot usage: {num_running}/{self.max_concurrent}')
+            num_free_slots = self.max_concurrent - num_running
+            if num_free_slots > 0:
+                self.report(f'Launching {num_free_slots} jobs...')
                 # Launch jobs
-                to_launch = job_left[:nfree]
+                to_launch = job_left[:num_free_slots]
                 self.report(f'Launched {len(to_launch)} jobs...')
                 if not dryrun:
                     for key, job in to_launch:

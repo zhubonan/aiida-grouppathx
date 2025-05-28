@@ -132,8 +132,8 @@ launcher.launch()
 ```
 
 Here the a callback function `launch_relax` is called for each node in the `source_group` with the node and its alias as the input arguments.
-This callback function should launch the calculation/workchain and return a tuple of the launched process
-and its alias to store inside the `target_group`.
+This callback function should launch the calculation/workchain and return a tuple of the `ProcessBuilder` object to be submitted to the AiiDA daemon,
+and the alias to store the resulting `ProcessNode` inside the `target_group`.
 
 Instead of using a `GroupPathX` as the source, one can also use a list of nodes and alias pairs the source by
 passing them through the `source_key_obj_pairs` keyword argument.

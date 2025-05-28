@@ -8,6 +8,9 @@ Manager for keep X number of active jobs to run at a time, which is useful when
 import time
 from typing import Callable, Optional
 
+from aiida import orm
+from aiida.engine import submit
+
 from .pathx import GroupPathX
 
 __all__ = ['GroupLauncher']
@@ -106,7 +109,12 @@ class GroupLauncher:
                 self.report(f'Launched {len(to_launch)} jobs...')
                 if not dryrun:
                     for key, job in to_launch:
-                        node, label = self.callback(job, key)
+                        node_or_builder, label = self.callback(job, key)
+                        # If a builder is returned, submit the job and take the returned node
+                        if isinstance(node_or_builder, orm.Node):
+                            node = node_or_builder
+                        else:
+                            node = submit(node_or_builder)
                         self.target_gp.add_node(node, label, force=self.force)
                 else:
                     labels = [entry[0] for entry in to_launch]

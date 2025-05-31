@@ -305,7 +305,8 @@ class GroupPathX(GroupPath):
         node_query.append(
             orm.Node,
             with_group=self.cls,
-            filters={'extras': {'has_key': self._extras_key}},
+            # Do not use filter in order to support SQLite backend which does support has_key as of aiida-core 2.6.3
+            # filters={'extras': {'has_key': self._extras_key}},
             project=['extras.' + self._extras_key] if not add_cache else ['extras.' + self._extras_key, '*'],
         )
 
@@ -314,11 +315,15 @@ class GroupPathX(GroupPath):
 
         def node_wrapper(items):
             for item in items:
-                yield ('node', item)
+                if item[0] is not None:
+                    # Only yield is self._extras_key is set
+                    yield ('node', item)
 
         def group_wrapper(items):
             for item in items:
-                yield ('group', item)
+                if item[0] is not None:
+                    # Only yield is self._extras_key is set
+                    yield ('group', item)
 
         yielded = []
         group_uuid = self.uuid

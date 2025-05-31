@@ -2,4 +2,4 @@
 Test configuration
 """
 
-pytest_plugins = ['aiida.manage.tests.pytest_fixtures']
+pytest_plugins = ['aiida.tools.pytest_fixtures']

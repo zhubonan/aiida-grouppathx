@@ -41,7 +41,7 @@ def test_root_path(setup_groups):
     assert group_path.delimiter == '/'
     assert group_path.parent is None
     assert group_path.is_virtual
-    assert group_path.get_group() is None
+    assert group_path.group is None
 
 
 def test_path_concatenation(setup_groups):
@@ -70,8 +70,8 @@ def test_group_retrieval(setup_groups):
     group_path = GroupPathX()
     assert group_path['x'].is_virtual
     assert not group_path['a'].is_virtual
-    assert group_path.get_group() is None
-    assert isinstance(group_path['a'].get_group(), orm.Group)
+    assert group_path.group is None
+    assert isinstance(group_path['a'].group, orm.Group)
 
 
 def test_group_creation(setup_groups):
@@ -217,15 +217,15 @@ def test_cls_label_clashes(aiida_profile_clean):
     group_02.add_nodes(node_02)
 
     # Requests for non-existing groups should return `None`
-    assert GroupPathX('b').get_group() is None
+    assert GroupPathX('b').group is None
 
     assert GroupPathX('a').group_ids == [group_01.pk]
-    assert GroupPathX('a').get_group().pk == group_01.pk
+    assert GroupPathX('a').group.pk == group_01.pk
     expected = [('a', node_01.pk)]
     assert [(r.group_path.path, r.node.pk) for r in GroupPathX('a').walk_nodes()] == expected
 
     assert GroupPathX('a', cls=orm.UpfFamily).group_ids == [group_02.pk]
-    assert GroupPathX('a', cls=orm.UpfFamily).get_group().pk == group_02.pk
+    assert GroupPathX('a', cls=orm.UpfFamily).group.pk == group_02.pk
     expected = [('a', node_02.pk)]
     assert [(r.group_path.path, r.node.pk) for r in GroupPathX('a', cls=orm.UpfFamily).walk_nodes()] == expected
 
@@ -243,15 +243,15 @@ def test_store_nodes(aiida_profile_clean):
 
     # Add node under the group
     node1 = orm.Int(1).store()
-    group.add_node(node1, 'int1')
-    assert group['int1'].get_node()
+    group['int1'] = node1
+    assert group['int1'].node
 
     # Change the name of the node
-    group.add_node(node1, 'int2', force=True)
-    assert group['int2'].get_node()
+    group['int2'] = node1
+    assert group['int2'].node
     assert group['int2'].is_node
-    assert group['int1'].get_node() is None
-    assert node1.base.extras.get(group._extras_key) == {group.get_group().uuid: 'int2'}
+    assert group['int1'].node is None
+    assert node1.base.extras.get(group._extras_key) == {group.group.uuid: 'int2'}
 
     # Delete a node
     subgroup.add_node(node1, 'int1')
@@ -277,7 +277,7 @@ def test_store_nodes(aiida_profile_clean):
     assert len(group.list_nodes()) == 0
     assert len(subgroup['int2'].list_nodes()) == 0
 
-    subgroup.get_group().add_nodes(orm.Int(2).store())
+    subgroup.group.add_nodes(orm.Int(2).store())
     assert len(subgroup.list_nodes_without_alias()) == 1
 
     # Check browse works
@@ -295,8 +295,8 @@ def test_build_tree(aiida_profile_clean):
     node1.label = 'X'
     node2 = orm.Int(1).store()
 
-    group.add_node(node1, 'node1')
-    subgroup.add_node(node2, 'node2')
+    group['node1'] = node1
+    subgroup['node2'] = node2
     tree = group._build_tree(decorate=[decorate_node])
     treestring = tree.show(stdout=False)
     assert 'node1 *' in treestring
@@ -304,7 +304,7 @@ def test_build_tree(aiida_profile_clean):
 
     def mydecorate(path):
         if path.is_node:
-            return '| label: ' + path.get_node().label
+            return '| label: ' + path.node.label
         return None
 
     tree = group._build_tree(decorate=[mydecorate])
@@ -313,14 +313,14 @@ def test_build_tree(aiida_profile_clean):
 
     def mydecorate2(path):
         if path.is_node:
-            return 'uuid: ' + path.get_node().uuid
+            return 'uuid: ' + path.node.uuid
         return None
 
     tree = group._build_tree(decorate=[mydecorate, mydecorate2])
     treestring = tree.show(stdout=False)
     assert 'node1 | label: X | uuid: ' in treestring
 
-    group.show_tree()
+    group.show_tree(decorate_by=['uuid', 'exit_status'])
 
 
 def test_cli(setup_groups):
@@ -342,7 +342,7 @@ def test_cli(setup_groups):
     node2 = orm.Dict({}).store()
     output = runner.invoke(grouppathx_cli, ['add-node', 'a', 'Node2', node2.uuid])
     assert output.exit_code == 0
-    assert node2 in GroupPathX('a').get_group().nodes
+    assert node2 in GroupPathX('a').group.nodes
     output = runner.invoke(grouppathx_cli, ['show', 'a'])
     assert output.exit_code == 0
     assert 'Node2' in output.stdout
@@ -350,7 +350,7 @@ def test_cli(setup_groups):
     # Test unlink
     output = runner.invoke(grouppathx_cli, ['unlink', 'a/Node2'])
     # Unlink is only a soft delete
-    assert node2 in GroupPathX('a').get_group().nodes
+    assert node2 in GroupPathX('a').group.nodes
     paths = [x.key for x in GroupPathX('a')]
     assert 'Node2' not in paths
 

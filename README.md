@@ -41,8 +41,8 @@ from aiida_grouppathx import GroupPathX
 path = GroupPathX('group1')
 path.get_or_create_group()
 path['group2'].get_or_create_group()
-path.add_node(Int(1).store(), 'int1')
-path['group2'].add_node(Int(1).store(), 'int2')
+path['int1'] = Int(1)
+path['group2']['int1'] = Int(1)
 
 path.show_tree()
 ```
@@ -91,6 +91,14 @@ group1
 │   └── int2 group1/group2 |  | de79d244-d3b
 └── int1 group1 |  | e2f70643-0c2
 ```
+
+One can also use pre- defined decorators to decorate the output of `show_tree`:
+
+```python
+path.show_tree(decorate_by=['label', 'uuid_first_12'])
+```
+
+which is equivalent to the method above.
 
 
 The stored nodes can be access through:

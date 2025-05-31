@@ -33,6 +33,7 @@ __all__ = [
     'decorate_with_exit_status',
     'decorate_with_uuid_first_n',
     'decorate_with_uuid',
+    'decorate_with_pk',
 ]
 
 
@@ -169,12 +170,17 @@ class GroupPathX(GroupPath):
         return super().get_group()
 
     @property
+    def group(self):
+        """Return the group associated with this path if exists"""
+        return self.get_group()
+
+    @property
     def uuid(self) -> Union[str, None]:
         """Return the uuid of the group or node associated with this path if exists"""
         gp = self.get_group()
         if gp:
             return gp.uuid
-        node = self.get_node()
+        node = self.node
         if node:
             return node.uuid
         return None
@@ -206,9 +212,13 @@ class GroupPathX(GroupPath):
 
     def get_node(self) -> Optional[orm.Node]:
         """Get an associated node for this group Path if exists"""
+        warnings.warn('GroupPathX.get_node is deprecated use .node property instead', DeprecationWarning)
+        return self.node
+
+    @property
+    def node(self) -> Optional[orm.Node]:
         if self.node_cache is not None:
             return self.node_cache
-
         query = self._get_node_query()
         if query is None:
             return None
@@ -371,7 +381,7 @@ class GroupPathX(GroupPath):
                 if return_virtual or not sub_child.is_virtual:
                     yield sub_child
 
-    def _build_tree(self, tree=None, parent=None, decorate=None):
+    def _build_tree(self, tree: Tree = None, parent=None, decorate=None):
         """Build a tree diagram of all children"""
 
         name = self.key
@@ -399,16 +409,22 @@ class GroupPathX(GroupPath):
                 )
         return tree
 
-    def show_tree(self, *decorate, **kwargs):
+    def show_tree(self, *decorate, decorate_by=None, **kwargs):
         """
         Show the tree of all children
 
         Path that are nodes are decorated with ``*``.
         Functions for decorating the leafs can be passed as positional arguments.
         Keyword arguments will be passed to the ``tree.show`` method.
+
+        :param decorate: functions for decorating the leafs
+        :param decorate_by: A list of pre-defined decorators, valid options can be found in the DECORATE_KEYS constant.
+        :param kwargs: keyword arguments for the ``tree.show`` method
         """
         if not decorate:
             decorate = [decorate_node]
+        if decorate_by:
+            decorate = [DECORATE_KEYS[value] for value in decorate_by]
 
         tree = self._build_tree(decorate=decorate)
         return tree.show(**kwargs)
@@ -445,12 +461,13 @@ class GroupPathX(GroupPath):
         """
         if not REGEX_ATTR.match(alias) and self._verbose:
             warnings.warn(
-                f'Alias {alias} is not valid Python identifier - you may consider using one for easier access.'
+                f'Alias {alias} is not valid Python identifier'
+                'you may consider using one for easier access with .browse access'
             )
         if self.is_virtual:
             self.get_or_create_group()
         if isinstance(node, GroupAttr):
-            node = node().get_node()
+            node = node().node
 
         # Check if the node to be added has an existing name for this group
         group = self.get_group()
@@ -459,6 +476,8 @@ class GroupPathX(GroupPath):
         if existing_name is not None and alias != existing_name:
             if force is False:
                 raise ValueError(f'Cannot add {node} with alias: {alias}, because it already has one: {existing_name}.')
+            else:
+                warnings.warn(f'Overwriting alias: {existing_name} with: {alias} for this group')
 
         # Check if this path is in use already
         target_path = self[alias]
@@ -468,11 +487,15 @@ class GroupPathX(GroupPath):
             if not force:
                 raise PathIsNotVirtualError(self[alias])
             # Unlink existing node
-            warnings.warn(f"Unsetting exsiting node: {target_path.get_node()}'s alias")
+            warnings.warn(f"Unsetting existing node: {target_path.node}'s alias")
             target_path.unlink()
 
         set_alias(node, group, alias)
         self.get_group().add_nodes(node)
+
+    def __setitem__(self, alias, node):
+        """Set a node to the group with an alias."""
+        self.add_node(node, alias, force=True)
 
     def add_nodes(self, nodes: dict, force=False):
         """
@@ -510,7 +533,7 @@ class GroupPathX(GroupPath):
 
         if not self.is_node:
             raise PathIsGroupError(self)
-        node = self.get_node()
+        node = self.node
         if not self.parent[alias].is_virtual:
             raise ValueError(f'Alias {alias} has been used already.')
         set_alias(node, self.parent.get_group(), alias)
@@ -518,7 +541,7 @@ class GroupPathX(GroupPath):
     @requires_node
     def unlink(self, save_previous=True):
         """Update the alias of this Node"""
-        node = self.get_node()
+        node = self.node
         delete_alias(node, self.parent.get_group(), save_previous=save_previous)
 
     def list_nodes(self):
@@ -531,7 +554,7 @@ class GroupPathX(GroupPath):
         """List all nodes that do not have any alias in this group"""
         if not self.is_group:
             return []
-        existing = [path.get_node().pk for path in self.children if path.is_node]
+        existing = [path.node.pk for path in self.children if path.is_node]
         missing = []
         for node in self.get_group().nodes:
             if node.pk not in existing:
@@ -602,7 +625,7 @@ def decorate_with_exit_status(path) -> Optional[str]:
     """Decrate paths that are nodes with process states"""
 
     if path.is_node:
-        node = path.get_node()
+        node = path.node
         if isinstance(node, ProcessNode):
             if node.is_finished:
                 return f'[{node.exit_status}]'
@@ -622,38 +645,84 @@ def decorate_with_uuid_first_n(n_char=12):
     def func(path) -> Optional[str]:
         """Decrate paths that are nodes with process states"""
         if path.is_node:
-            node = path.get_node()
+            node = path.node
             return f'{node.uuid[:n_char]}'
         return None
 
     return func
 
 
+def none_unless_node(func):
+    """Decorator - return None if path is not a node"""
+
+    @wraps(func)
+    def wrapper(path):
+        if not path.is_node:
+            return None
+        return func(path)
+
+    return wrapper
+
+
+def none_if_virtual(func):
+    """Decorator - return None if path is not a node"""
+
+    @wraps(func)
+    def wrapper(path):
+        if not path.is_virtual:
+            return None
+        return func(path)
+
+    return wrapper
+
+
+def none_unless_group(func):
+    """Decorator - return None if path is not a node"""
+
+    @wraps(func)
+    def wrapper(path):
+        if not path.is_group:
+            return None
+        return func(path)
+
+    return wrapper
+
+
 def decorate_with_uuid(path) -> Optional[str]:
     """Decrate the nodes with their UUIDs"""
     if path.is_node:
-        node = path.get_node()
-        return f'{node.uuid[:12]}'
+        return f'{path.node.uuid[:12]}'
+    if path.is_group:
+        return f'{path.group.uuid[:12]}'
+    return None
+
+
+def decorate_with_pk(path) -> Optional[str]:
+    """Decrate the nodes with their UUIDs"""
+    if path.is_node:
+        return f'{path.node.pk}'
+    if path.is_group:
+        return f'{path.group.pk}'
     return None
 
 
 def decorate_with_label(path) -> Optional[str]:
     """Decrate nodes with their labels"""
     if path.is_node:
-        node = path.get_node()
-        return f'{node.label}'
+        return f'{path.node.label}'
+    if path.is_group:
+        return f'{path.group.label}'
     return None
 
 
+@none_unless_node
 def decorate_with_group_names(path) -> Optional[str]:
-    """Decrate nodes with the name of the group they belong to"""
-    if path.is_node:
-        node = path.get_node()
-        query = orm.QueryBuilder().append(orm.Node, filters={'id': node.id})
-        query.append(orm.Group, with_node=orm.Node, project=['label'])
-        groups = [entry[0] for entry in query.all()]
-        return ', '.join(groups)
-    return None
+    """Decorate nodes with the name of the group they belong to"""
+    node = path.node
+    query = orm.QueryBuilder().append(orm.Node, filters={'id': node.id})
+    query.append(orm.Group, with_node=orm.Node, project=['label'])
+    groups = [entry[0] for entry in query.all()]
+    return ', '.join(groups)
 
 
 @contextmanager
@@ -681,3 +750,15 @@ def only_nodes(gp: GroupPathX):
     gp.only_nodes_in_iter = True
     yield gp
     gp.only_nodes_in_iter = old
+
+
+DECORATE_KEYS = {
+    'label': decorate_with_label,
+    'pk': decorate_with_pk,
+    'group': decorate_group,
+    'node': decorate_node,
+    'group_name': decorate_with_group_names,
+    'exit_status': decorate_with_exit_status,
+    'uuid': decorate_with_uuid,
+    'uuid_first_12': decorate_with_uuid_first_n(12),
+}
